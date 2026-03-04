@@ -3,6 +3,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { UsersModule } from './modules/users/users.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 
 
 @Module({
@@ -31,6 +34,9 @@ import { ConfigModule } from '@nestjs/config';
           rejectUnauthorized: false
         } : false,
     }),
+    UsersModule,
+    TenantsModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
