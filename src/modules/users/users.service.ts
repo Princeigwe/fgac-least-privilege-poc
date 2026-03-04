@@ -10,5 +10,21 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ){}
 
+  async createSuperAdmin(
+    name: string, 
+    email: string,
+    password: string,
+    isActive: boolean,
+  ){
+    const user = this.usersRepository.create({
+      name,
+      email,
+      password,
+      isActive,
+      isSuperAdmin: true,
+    })
+    return await this.usersRepository.save(user)
+  }
+
   async createTenantUser(){}
 }

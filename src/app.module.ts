@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './modules/users/users.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 
 @Module({
@@ -25,8 +26,8 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      synchronize: false,
-      entities: ['**/*.entity.ts'],
+      synchronize: true,
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
       // migrations: ['src/database/migrations/*-migration.ts'],
       migrationsRun: false,
       logging: true,
@@ -37,6 +38,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     UsersModule,
     TenantsModule,
     PermissionsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
