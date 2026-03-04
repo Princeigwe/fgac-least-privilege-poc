@@ -14,9 +14,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      whitelist: true,
+      // forbidNonWhitelisted: true,
     }),
   );
-  
+
   app.setGlobalPrefix('v1', {
     exclude: [{ path: 'health', method: RequestMethod.GET }],
   });
