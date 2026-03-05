@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -35,5 +35,15 @@ export class UsersService {
         email
       }
     })
+  }
+
+
+  // this function is used by the passport-jwt strategy
+  async getUserByIdAndEmail(id: string, email: string) {
+    const user = await this.usersRepository.findOneBy({ id, email })
+    if (!user) {
+      throw new HttpException("User does not exist", HttpStatus.BAD_REQUEST)
+    }
+    return user
   }
 }
