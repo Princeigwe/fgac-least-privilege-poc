@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { Permission } from '../permissions/permission.entity';
 
 @Injectable()
 export class AuthService {
@@ -40,8 +41,14 @@ export class AuthService {
   }
 
 
-  async generateJwtAccessToken(userId: string, email: string){
-    const payload = { userId, email }
+  async generateJwtAccessToken(
+    userId: string, 
+    email: string, 
+    isSuperAdmin: boolean,
+    isTenantAdmin: boolean,
+    permission: Permission
+  ){
+    const payload = { userId, email, isSuperAdmin, isTenantAdmin, permission}
     const token = this.jwtService.sign(payload) 
     return token
   }
@@ -53,7 +60,13 @@ export class AuthService {
     if(!user){
       throw new HttpException("Invalid Credentials", HttpStatus.BAD_REQUEST)
     }
-    const token = await this.generateJwtAccessToken(user.id, user.email)
+    const token = await this.generateJwtAccessToken(
+      user.id, 
+      user.email,
+      user.isSuperAdmin,
+      user.isTenantAdmin,
+      user.permission
+    )
     return {
       token: token,
       user: user
