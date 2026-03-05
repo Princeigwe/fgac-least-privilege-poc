@@ -27,4 +27,13 @@ export class UsersService {
   }
 
   async createTenantUser(){}
+
+
+  async getUserByEmail(email: string){
+    return await this.usersRepository.findOne({
+      where: {
+        email
+      }
+    })
+  }
 }
