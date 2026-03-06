@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Permission } from './permission.entity';
 import { User } from '../users/user.entity'
+import { Tenant } from '../tenants/tenant.entity';
 
 @Injectable()
 export class PermissionsService {
@@ -18,11 +19,25 @@ export class PermissionsService {
       `${User.name}:read`,
       `${User.name}:update`,
       `${User.name}:delete`,
+      `${Tenant.name}:create`,
+      `${Tenant.name}:read`,
+      `${Tenant.name}:update`,
+      `${Tenant.name}:delete`
       // `${Permission.name}:create`,
       // `${Permission.name}:read`,
       // `${Permission.name}:update`,
       // `${Permission.name}:delete`,
     ]
     return permissionsOverview
+  }
+
+
+  async assignNewUserPermission(user: User, tenantID: string, scopes: string[]){
+    const permission = this.permissionRepo.create({
+      user,
+      tenantId: tenantID,
+      scopes
+    })
+    return await this.permissionRepo.save(permission)
   }
 }

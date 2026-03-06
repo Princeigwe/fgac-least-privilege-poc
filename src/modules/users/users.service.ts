@@ -2,6 +2,11 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
+import { PasswordGenerator } from '../../utils/password.generator';
+import * as bcrypt from 'bcrypt';
+
+
+const passwordGenerator = new PasswordGenerator();
 
 @Injectable()
 export class UsersService {
@@ -26,7 +31,28 @@ export class UsersService {
     return await this.usersRepository.save(user)
   }
 
-  async createTenantUser(){}
+  async createTenantUser(name: string, email: string, isTenantAdmin?:boolean){
+
+    const existingUser = await this.getUserByEmail(email)
+    if(existingUser){
+      throw new HttpException("User already exists", HttpStatus.BAD_REQUEST)
+    }
+
+    let password = passwordGenerator.generatePassword()
+    console.log("Plain password: ",password)
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+    password = hashedPassword
+
+    const user = this.usersRepository.create({
+      name,
+      email,
+      password,
+      isActive: true,
+      isTenantAdmin
+    })
+    return await this.usersRepository.save(user)
+  }
 
 
   async getUserByEmail(email: string){
