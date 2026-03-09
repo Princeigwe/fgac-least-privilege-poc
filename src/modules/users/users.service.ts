@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { PasswordGenerator } from '../../utils/password.generator';
 import * as bcrypt from 'bcrypt';
+import { Tenant } from '../tenants/tenant.entity';
+import { PermissionsService } from '../permissions/permissions.service';
 
 
 const passwordGenerator = new PasswordGenerator();
@@ -13,6 +15,9 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private permissionsService: PermissionsService,
+    @InjectRepository(Tenant)
+    private tenantRepository: Repository<Tenant>
   ){}
 
   async createSuperAdmin(
@@ -71,5 +76,34 @@ export class UsersService {
       throw new HttpException("User does not exist", HttpStatus.BAD_REQUEST)
     }
     return user
+  }
+
+
+  async registerTenantUserWithPermission(tenantID: string, name: string, email: string, scopes: string[]){
+    await this.permissionsService.validatePermissionScopes(scopes)
+    const newUser = await this.createTenantUser(name, email)
+    const tenant = await this.tenantRepository.findOne({
+      where: {
+        id: tenantID
+      },
+      relations: ['users'],
+    })
+    if (!tenant) {
+      throw new HttpException(`Tenant with ID ${tenantID} not found`, HttpStatus.NOT_FOUND);
+    }
+    tenant.users.push(newUser);
+    await this.tenantRepository.save(tenant)
+
+    const permission = await this.permissionsService.assignNewUserPermission(
+      newUser,
+      tenant.id,
+      scopes
+    )
+
+    return{
+      newUser,
+      tenant,
+      permission
+    }
   }
 }
