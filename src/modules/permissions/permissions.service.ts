@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Permission } from './permission.entity';
 import { User } from '../users/user.entity'
 import { Tenant } from '../tenants/tenant.entity';
+import { Sale } from '../sales/sales.entity';
 
 @Injectable()
 export class PermissionsService {
@@ -22,7 +23,11 @@ export class PermissionsService {
       `${Tenant.name}:create`,
       `${Tenant.name}:read`,
       `${Tenant.name}:update`,
-      `${Tenant.name}:delete`
+      `${Tenant.name}:delete`,
+      `${Sale.name}:create`,
+      `${Sale.name}:read`,
+      `${Sale.name}:update`,
+      `${Sale.name}:delete`,
       // `${Permission.name}:create`,
       // `${Permission.name}:read`,
       // `${Permission.name}:update`,

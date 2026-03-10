@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 
 @Module({
@@ -39,6 +40,7 @@ import { AuthModule } from './modules/auth/auth.module';
     TenantsModule,
     PermissionsModule,
     AuthModule,
+    SalesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
