@@ -4,7 +4,10 @@ import { CreateUserDto } from '../users/dtos/create.user.dto';
 import { LocalAuthGuard } from './guards/local.auth.guard';
 import { LoginDto } from './dtos/login.dto';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Auth')
+@ApiBearerAuth()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -12,6 +15,9 @@ export class AuthController {
   ){}
 
 
+  @ApiOperation({description: "This endpoint registers a super admin user"})
+  @ApiBody({type: CreateUserDto})
+  // @UseGuards(JwtAuthGuard)
   @Post('register/super-admin')
   async registerSuperAdmin(@Body() body: CreateUserDto){
     return await this.authService.registerSuperAdmin(
@@ -22,6 +28,8 @@ export class AuthController {
     )
   }
 
+  @ApiProperty({description: "This endpoint registers an admin user"})
+  @ApiBody({type: LoginDto})
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async loginUser(@Body()body: LoginDto) {
@@ -29,6 +37,7 @@ export class AuthController {
   }
 
 
+  @ApiOperation({description: "This gets the profile of the currently logged in user"})
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req) {
