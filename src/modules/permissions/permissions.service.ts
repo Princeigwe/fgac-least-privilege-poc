@@ -60,7 +60,7 @@ export class PermissionsService {
 
   async updateScopesFromScopesToAdd(currentScopes: string[], scopesToAdd: string[]){
     const scopesToAddSet = new Set(scopesToAdd)
-    return [...currentScopes, ...scopesToAddSet]
+    return [...new Set([...currentScopes, ...scopesToAddSet])]
   }
 
 
