@@ -1,99 +1,162 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# fgac-least-privilege-poc
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A proof-of-concept NestJS API demonstrating **Fine-Grained Access Control (FGAC)** built on the **Principle of Least Privilege (PoLP)**. Rather than relying on broad role-based gates, this system grants each user only the specific resource-action scopes they need - nothing more.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Concept Overview
+This project explores a more granular alternative: each user is assigned a **permission record** containing an explicit list of **scopes** they are allowed to exercise. A scope is a string of the form `Resource:action` - for example, `Sale:update` or `Sale:read`. Nothing is inferred from a role; access is only granted if the exact scope is present.
 
-## Project setup
 
-```bash
-$ npm install
+The system also supports a **multi-tenant** model, where permissions are scoped per tenant. A user may have `Sale:update` in Tenant A and has none in Tenant B.
+
+
+
+## Architecture
+
+```
+Request
+  │
+  ├── JwtAuthGuard          → Verifies JWT, attaches user to request
+  │
+  └── FineGrainedPermissionGuard
+        ├── Is SuperAdmin?          → Bypass all checks
+        ├── Has @RequirePermission? → Extract resource + action
+        ├── Derive tenantId         → From route params or body
+        ├── Load Permission record  → Filtered by user + tenantId
+        └── Check scope             → `resource:action` ∈ scopes[]
 ```
 
-## Compile and run the project
 
-```bash
-# development
-$ npm run start
+Guards are applied at the controller method level via `@UseGuards()`. The `@RequirePermission()` decorator annotates what scope a route requires, and the guard resolves it at runtime.
 
-# watch mode
-$ npm run start:dev
 
-# production mode
-$ npm run start:prod
+### `Permission`
+
+A single record per user. The `scopes` column is a JSON array of allowed scope strings, and `tenantId` confines the permission to a specific tenant.
+
+
+
+## Permission Model
+
+Scopes follow a `Resource:action` convention. The resource name is derived from the entity class name (e.g. `Sale`), and the action describes the operation being gated.
+
+| Scope | Meaning |
+|---|---|
+| `Sale:read` | View sales records for a tenant |
+| `Sale:create` | Create a new sale record |
+| `Sale:update` | Modify an existing sale record |
+| `Sale:delete` | Remove a sale record |
+
+A user's `Permission.scopes` array holds whichever of these they have been explicitly granted. Any scope not present is implicitly denied.
+
+
+
+### SuperAdmin Bypass
+
+Users with `isSuperAdmin: true` bypass the scope check entirely. This is the only role-level shortcut in the system - all other access decisions are resolved from the `scopes` array.
+
+
+
+---
+
+## The `@RequirePermission` Decorator
+
+```typescript
+@RequirePermission('Sale', 'update')
+
 ```
 
-## Run tests
+This decorator attaches metadata to a route handler using NestJS's `SetMetadata`. It takes two arguments:
 
-```bash
-# unit tests
-$ npm run test
+| Argument | Description | Example |
+|---|---|---|
+| `resource` | The resource being accessed | `'Sale'`, `Sale.name` |
+| `action` | The operation being performed | `'read'`, `'update'`, `'delete'` |
 
-# e2e tests
-$ npm run test:e2e
+The guard reads this metadata at request time via `Reflector.getAllAndOverride()`. If a route has no `@RequirePermission` decorator, the guard allows access through - useful for public or internally-trusted routes.
 
-# test coverage
-$ npm run test:cov
+---
+
+## The `FineGrainedPermissionGuard`
+
+`FineGrainedPermissionGuard` implements `CanActivate` and runs after `JwtAuthGuard` has authenticated the user. Its decision logic follows this sequence:
+
+```
+1. No authenticated user?          → 401 Unauthorized
+2. user.isSuperAdmin === true?     → ✅ Allow (bypass)
+3. No @RequirePermission on route? → ✅ Allow (open route)
+4. Derive tenantId from request    → params.tenantID ?? body.tenantID
+5. No tenantId found?              → 403 Forbidden
+6. Load Permission where user.id + tenantId match
+7. No permission record found?     → 403 Forbidden
+8. requiredScope ∈ scopes[]?       → ✅ Allow
+9. Scope missing?                  → 403 Forbidden (`Missing required permission: [Sale:update]`)
 ```
 
-## Deployment
+The guard resolves the `tenantId` from either the route params or the request body, making it flexible for both RESTful resource routes and body-driven requests.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Usage Example
+```typescript
+  import { Tenant } from './tenant.entity';
 
-```bash
-$ npm install -g mau
-$ mau deploy
+  @UseGuards(JwtAuthGuard, FineGrainedPermissionGuard)
+  @RequirePermission(Tenant.name, 'create')
+  @Post()
+  async createTenant(@Body() body: CreateTenantDto){
+    return await this.tenantsService.createTenant(
+      body.name,
+      body.tenantAdminName,
+      body.tenantAdminEmail
+    )
+  }
+
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
-## Resources
+## Running the Project
 
-Check out a few resources that may come in handy when working with NestJS:
+### Prerequisites
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- Node.js >= 18
+- PostgreSQL
+- A `.env` file (see below)
 
-## Support
+### Environment Variables
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```env
+DB_USERNAME=admin
+DB_PASSWORD=admin
+DB_NAME=fgac_db
+DB_HOST=localhost
+DB_PORT=5432
+PGADMIN_EMAIL=admin@gmail.com
+PGADMIN_PASSWORD=admin-password
+JWT_SECRET=the-most-secret-thing-ever
+```
 
-## Stay in touch
+### Install and Start
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+npm install
+npm run start:dev
+```
 
-## License
+### Swagger Docs
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+API documentation is available at:
+
+```
+http://localhost:3000/api-docs
+```
+
+---
+
+## Things to Note
+1. For every created module that will be access via API endpoint, update its CRUD actions in the permissions overview function.
+2. For every created module that will be access via API endpoint, import the Tenant and Permission entities as a TypeORModule feature.
+3. To avoid typographical error, use the name attribute of entity classes, together with the CRUD action in the `@RequiredPermission()` decorator.
+4. For every new module/resource created, there's need to update the permission of the tenant admin in relation to it. This can be manually done by the tenant admin updating their permission scope, or a Cron job can defined to auto-update scopes for all new resources.
