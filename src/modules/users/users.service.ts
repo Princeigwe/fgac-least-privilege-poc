@@ -60,6 +60,17 @@ export class UsersService {
   }
 
 
+  async getTenantUsers(tenantId: string){
+    return await this.usersRepository.find({
+      where: {
+        tenant: {
+          id: tenantId
+        }
+      }
+    })
+  }
+
+
   async getUserByEmail(email: string){
     return await this.usersRepository.findOne({
       where: {
@@ -106,4 +117,28 @@ export class UsersService {
       permission
     }
   }
+
+
+  async updateUserPermissionScopes(userId: string, scopesToAdd?: string[], scopesToRemove?: string[]){
+    if(!scopesToAdd && !scopesToRemove){
+      throw new HttpException('No scopes to add or remove', HttpStatus.BAD_REQUEST)
+    }
+    const user = await this.usersRepository.findOne({
+      where: {
+        id: userId
+      },
+      relations: ['permission']
+    })
+    if(!user){
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND)
+    }
+    if(scopesToAdd || scopesToRemove){
+      return await this.permissionsService.updatePermission(
+        user.permission.id,
+        scopesToAdd,
+        scopesToRemove
+      )
+    }
+  }
 }
+

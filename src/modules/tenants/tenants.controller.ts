@@ -1,4 +1,4 @@
-import { Controller, Body, Post, UseGuards } from '@nestjs/common';
+import { Controller, Body, Post, UseGuards, Get } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dtos/create.tenant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
@@ -22,5 +22,12 @@ export class TenantsController {
       body.tenantAdminName,
       body.tenantAdminEmail
     )
+  }
+
+  @UseGuards(JwtAuthGuard, FineGrainedPermissionGuard)
+  @RequirePermission(Tenant.name, 'read')
+  @Get()
+  async getTenants(){
+    return await this.tenantsService.getTenants()
   }
 }

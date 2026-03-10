@@ -50,4 +50,45 @@ export class PermissionsService {
     })
     return await this.permissionRepo.save(permission)
   }
+
+
+  async updateScopesFromScopesToRemove(currentScopes: string[], scopesToRemove: string[]){
+    const scopesRemoveSet = new Set(scopesToRemove)
+    return currentScopes.filter(scope => !scopesRemoveSet.has(scope))
+  }
+
+
+  async updateScopesFromScopesToAdd(currentScopes: string[], scopesToAdd: string[]){
+    const scopesToAddSet = new Set(scopesToAdd)
+    return [...currentScopes, ...scopesToAddSet]
+  }
+
+
+  async ensureNoOverlappingScopes(scopesToAdd: string[], scopesToRemove: string[]){
+    const scopesToRemoveSet = new Set(scopesToRemove)
+    const overlapping = scopesToAdd.filter(scope => scopesToRemoveSet.has(scope))
+    if(overlapping.length > 0){
+      throw new HttpException(`Scopes conflict: ${overlapping.join(", ")}`, HttpStatus.BAD_REQUEST)
+    }
+  }
+
+
+  async updatePermission(permissionId:string, scopesToAdd?: string[],scopesToRemove?: string[]){
+    if(scopesToAdd && scopesToRemove){
+      await this.ensureNoOverlappingScopes(scopesToAdd, scopesToRemove)
+    }
+
+    const permission = await this.permissionRepo.findOne({where: {id: permissionId}})
+    if(!permission){
+      throw new HttpException('Permission not found', HttpStatus.NOT_FOUND)
+    }
+    const currentScopes = permission.scopes
+    if(scopesToAdd){
+      permission.scopes = await this.updateScopesFromScopesToAdd(currentScopes, scopesToAdd)
+    }
+    if(scopesToRemove){
+      permission.scopes = await this.updateScopesFromScopesToRemove(currentScopes, scopesToRemove)
+    }
+    return await this.permissionRepo.save(permission)
+  }
 }

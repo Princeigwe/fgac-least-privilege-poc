@@ -49,4 +49,9 @@ export class TenantsService {
       permission
     }
   }
+
+
+  async getTenants(){
+    return await this.tenantRepo.find()
+  }
 }
