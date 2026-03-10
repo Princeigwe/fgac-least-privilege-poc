@@ -85,13 +85,13 @@ The guard reads this metadata at request time via `Reflector.getAllAndOverride()
 
 ```
 1. No authenticated user?          → 401 Unauthorized
-2. user.isSuperAdmin === true?     → ✅ Allow (bypass)
-3. No @RequirePermission on route? → ✅ Allow (open route)
+2. user.isSuperAdmin === true?     → Allow (bypass)
+3. No @RequirePermission on route? → Allow (open route)
 4. Derive tenantId from request    → params.tenantID ?? body.tenantID
 5. No tenantId found?              → 403 Forbidden
 6. Load Permission where user.id + tenantId match
 7. No permission record found?     → 403 Forbidden
-8. requiredScope ∈ scopes[]?       → ✅ Allow
+8. requiredScope ∈ scopes[]?       → Allow
 9. Scope missing?                  → 403 Forbidden (`Missing required permission: [Sale:update]`)
 ```
 
