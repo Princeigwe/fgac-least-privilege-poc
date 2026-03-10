@@ -160,3 +160,4 @@ http://localhost:3000/api-docs
 2. For every created module that will be access via API endpoint, import the Tenant and Permission entities as a TypeORModule feature.
 3. To avoid typographical error, use the name attribute of entity classes, together with the CRUD action in the `@RequiredPermission()` decorator.
 4. For every new module/resource created, there's need to update the permission of the tenant admin in relation to it. This can be manually done by the tenant admin updating their permission scope, or a Cron job can defined to auto-update scopes for all new resources.
+5 The tenant identifier parameter must be named  `tenantID` consistently across all route definitions. The `FineGrainedPermissionGuard` resolves the tenant context by reading `request.params.tenantID` directly; any deviation in the parameter name will cause the guard to fail.
